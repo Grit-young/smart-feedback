@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Vite 전용 환경 변수 호출 방식
+// process.env 대신 import.meta.env 사용!
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
