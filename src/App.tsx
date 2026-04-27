@@ -22,34 +22,31 @@ export default function App() {
   const [history, setHistory] = useState<ReportData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🌟 로그인 상태 감지 로직 추가
-  useEffect(() => {
-    // 앱이 처음 켜질 때 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // 실시간 로그인/로그아웃 감지
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // 기존 히스토리 로딩 로직 (로그인 성공 시에만 동작하도록 감싸도 됨)
-  useEffect(() => {
+  // App.tsx 내부의 useEffect 로직 수정
+useEffect(() => {
+  const checkUserStatus = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
     if (session) {
-      const saved = localStorage.getItem('smartFeedbackHistory');
-      if (saved) {
-        try {
-          setHistory(JSON.parse(saved));
-        } catch (e) {
-          console.error("Storage parse error", e);
-        }
+      // 🌟 로그인된 사용자의 승인 상태를 DB에서 조회
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_approved')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profile?.is_approved) {
+        setSession(session); // 승인된 경우에만 세션 유지 (메인 화면 진입)
+      } else {
+        alert("관리자의 승인이 필요한 계정입니다. 잠시만 기다려주세요.");
+        await supabase.auth.signOut(); // 미승인 사용자는 강제 로그아웃
+        setSession(null);
       }
     }
-  }, [session]);
+  };
+
+  checkUserStatus();
+}, []);
 
   const saveToHistory = (data: ReportData) => {
     const newData = { ...data, created_at: new Date().toLocaleDateString() };
