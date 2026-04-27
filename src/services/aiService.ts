@@ -1,21 +1,26 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReportData, StudentInfo } from "../types";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+// 1. Vite 표준 환경 변수 호출 (반드시 VITE_로 시작해야 함)
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const getAi = () => {
-    // Process.env is provided by Vite config
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-        throw new Error("API 키가 설정되지 않았습니다 (GEMINI_API_KEY).");
-    }
-    return new GoogleGenAI({ apiKey: key });
-};
+// API 키가 없을 경우를 대비한 방어 로직
+if (!API_KEY) {
+  console.error("❌ VITE_GEMINI_API_KEY가 설정되지 않았습니다. .env.local 파일이나 Vercel 설정을 확인하세요.");
+}
 
-export const extractStudentInfo = async (
-    files: { data: string; mimeType: string }[]
-): Promise<Partial<StudentInfo>> => {
-    const ai = getAi();
+// 2. 구글 AI 초기화 (한 번만 선언)
+const genAI = new GoogleGenerativeAI(API_KEY || "");
+
+export const generateFeedbackReport  = async (
+  info: StudentInfo, 
+  files: { data: string; mimeType: string; name: string }[]
+): Promise<ReportData> => {
+  
+  try {
+    // 사용할 모델 설정 (가장 빠르고 효율적인 flash 모델 권장)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
     const prompt = `업로드된 시험지나 분석표 문서(이미지/PDF)에서 학생의 기본 정보를 추출해 주세요.
 찾을 수 없는 정보나 불확실한 정보는 빈 문자열("")로 반환하세요.
 - 학년은 명확할 경우 반드시 "초1", "초2", "초3", "초4", "초5", "초6", "중1", "중2", "중3" 중의 형식으로 변환해서 적어주세요.
